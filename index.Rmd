@@ -1,5 +1,5 @@
 ---
-title: 'A Quick Background of Statistical Genetics'
+title: 'What I know about Statistical Genetics so far'
 author: "Erin Franke"
 date: "9/23/2022"
 output: 
