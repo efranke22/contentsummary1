@@ -1,0 +1,72 @@
+---
+title: 'A Quick Background of Statistical Genetics'
+author: "Erin Franke"
+date: "9/23/2022"
+output: 
+  html_document:
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo = FALSE, eval = FALSE}
+library(snpStats)
+load("/Users/erinfranke/Desktop/GWAStutorial-master/conversionTable.RData")
+
+pathM <- paste("/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/108Malay_2527458snps", c(".bed", ".bim", ".fam"), sep = "")
+SNP_M <- read.plink(pathM[1], pathM[2], pathM[3])
+pathI <- paste("/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/105Indian_2527458snps", c(".bed", ".bim", ".fam"), sep = "")
+SNP_I <- read.plink(pathI[1], pathI[2], pathI[3])
+pathC <- paste("/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/110Chinese_2527458snps", c(".bed", ".bim", ".fam"), sep = "")
+SNP_C <- read.plink(pathC[1], pathC[2], pathC[3])
+SNP <- rbind(SNP_M$genotypes, SNP_I$genotypes, SNP_C$genotypes)
+
+# Take one bim map (all 3 maps are based on the same ordered set of SNPs)
+map <- SNP_M$map
+colnames(map) <- c("chr", "SNP", "gen.dist", "position", "A1", "A2")
+
+# Rename SNPs present in the conversion table into rs IDs
+mappedSNPs <- intersect(map$SNP, names(conversionTable))
+newIDs <- conversionTable[match(map$SNP[map$SNP %in% mappedSNPs], names(conversionTable))]
+map$SNP[rownames(map) %in% mappedSNPs] <- newIDs
+```
+
+## The Genetics part
+
+Statistical genetics is based around studying **genetic variants**.
+
+![](geneticvariants.png){width='90%'}
+
+We can study these genetic variants with something known as a **Genetic- Wide Association Study (GWAS)**.
+
+![](gwas.png){width='90%'}
+
+## The Statistics part 
+
+
+### Matrix proof why linear regression doesn't work
+
+
+
+### Marginal regression in action 
+
+We have 323 individuals and 2527458 SNPs.
+```{r, echo=FALSE, eval = FALSE}
+SNP
+```
+
+Get the minor allele frequency:
+```{r, echo = FALSE, eval = FALSE}
+map_clean <- map %>%
+  rename("snp.name" = "SNP",
+         "chromosome" = "chr", 
+         "cM" = "gen.dist", 
+         "allele.1" = "A1", 
+         "allele.2" = "A2") %>%
+  filter(snp.name != ".")
+maf <- col.summary(map)$MAF
+head(maf)
+```
+
