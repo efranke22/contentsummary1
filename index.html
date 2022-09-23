@@ -480,36 +480,19 @@ variants</strong>.</p>
 </div>
 <div id="the-statistics-part" class="section level2">
 <h2>The Statistics part</h2>
-<div id="marginal-regression-in-action" class="section level3">
-<h3>Marginal regression in action</h3>
-<p>As seen from the matrix proof above, linear regression won’t work for
-a GWAS study. As a result, we can implement <strong>marginal
-regression</strong>. The following example will use data found on <a href="R-bloggers">https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/</a>
+<p>As mentioned above, linear regression won’t work for a GWAS study. As
+a result, we can implement <strong>marginal regression</strong>. The
+following example will use data found on <a href="R-bloggers">https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/</a>
 which includes 323 individuals (110 Chinese, 105 Indian and 108 Malay)
 and 2,527,458 SNPs.</p>
-<div id="data-loading-and-organization" class="section level4">
-<h4>Data loading and organization</h4>
+<div id="data-loading-and-organization" class="section level3">
+<h3>Data loading and organization</h3>
 <p>The following code chunks outline the steps of importing the genetic
 data.</p>
 <p>Load libraries:</p>
-<pre class="r"><code>library(snpStats)</code></pre>
-<pre><code>## Loading required package: survival</code></pre>
-<pre><code>## Loading required package: Matrix</code></pre>
-<pre class="r"><code>library(tidyverse)</code></pre>
-<pre><code>## ── Attaching packages
-## ───────────────────────────────────────
-## tidyverse 1.3.2 ──</code></pre>
-<pre><code>## ✔ ggplot2 3.3.6      ✔ purrr   0.3.4 
-## ✔ tibble  3.1.8      ✔ dplyr   1.0.10
-## ✔ tidyr   1.2.1      ✔ stringr 1.4.1 
-## ✔ readr   2.1.2      ✔ forcats 0.5.2 
-## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-## ✖ tidyr::expand() masks Matrix::expand()
-## ✖ dplyr::filter() masks stats::filter()
-## ✖ dplyr::lag()    masks stats::lag()
-## ✖ tidyr::pack()   masks Matrix::pack()
-## ✖ tidyr::unpack() masks Matrix::unpack()</code></pre>
-<pre class="r"><code>library(broom)</code></pre>
+<pre class="r"><code>library(snpStats)
+library(tidyverse)
+library(broom)</code></pre>
 <p>Load data for the Chinese, Indian, and Malay individuals and combine
 them into one <code>SnpMatrix</code>. This process uses
 <code>read.plink()</code>, which reads a genotype matrix, information on
@@ -536,7 +519,6 @@ colnames(map) &lt;- c(&quot;chromosome&quot;, &quot;snp.name&quot;, &quot;cM&quo
 mappedSNPs &lt;- intersect(map$SNP, names(conversionTable))
 newIDs &lt;- conversionTable[match(map$SNP[map$SNP %in% mappedSNPs], names(conversionTable))]
 map$SNP[rownames(map) %in% mappedSNPs] &lt;- newIDs</code></pre>
-</div>
 </div>
 <div id="get-a-sense-of-the-data" class="section level3">
 <h3>Get a sense of the data</h3>
@@ -586,13 +568,13 @@ one another along the genome<br />
 with position being being the first nucleotide in our DNA sequence<br />
 
 <ul>
-<li>this number restarts from 1 at each chromosome<br />
+<li>This number restarts from 1 at each chromosome<br />
 </li>
 </ul></li>
-<li><code>allele.1</code> is one of the alleles at this SNP, usually the
+<li><code>allele.1</code> is one of the alleles at this SNP, here the
 minor allele<br />
 </li>
-<li><code>allele.2</code> is the other allele at this SNP, usually the
+<li><code>allele.2</code> is the other allele at this SNP, here the
 major allele</li>
 </ul>
 <pre class="r"><code>head(map)</code></pre>
@@ -663,7 +645,7 @@ code below.</p>
 dim(map)</code></pre>
 <pre><code>## [1] 1651345       7</code></pre>
 <p>After filtering, we have 1,651,345 SNPs remaining. Therefore, we
-removed 876,113 SNPs, which is quite a lot.</p>
+removed 876,113 SNPs.</p>
 <p>However, we are not done cleaning the data. Below, when looking at
 the first six rows of <code>map</code>, we see two <code>NA</code>
 values for <code>allele.1</code>. In these rows, the minor allele
@@ -716,9 +698,6 @@ to 1,293,100 SNPs.</p>
          !is.na(allele.1))
 dim(map.clean)</code></pre>
 <pre><code>## [1] 1293100       7</code></pre>
-<pre class="r"><code>#also get ids of snps filtered out so that we can remove them from the matrix form later
-snps.to.remove &lt;- map %&gt;% filter(MAF &lt;= 0.03 | 
-         is.na(allele.1))</code></pre>
 <p>One downside to this whole process of removing SNPs with small MAFs
 is that a major goal of GWAS studies is detect to rare variations on
 SNPs that could be associated with the trait of interest. Removing SNPs
@@ -767,12 +746,15 @@ in our data. The minor allele frequency is 23.4%.</p>
 ## rs3131972          1 rs3131972 NA   752721        A        G 0.2337461</code></pre>
 <p>To create a quantitative trait <code>y</code> we will use information
 dependent on the genotype at this SNP plus random noise that is normally
-distributed with a mean of 0 and standard deviation of 0.6.</p>
+distributed with a mean of 0 and standard deviation of 0.6. Choosing a
+standard deviation is somewhat arbitrary, but I decided to go on the
+smaller side here to better ensure our causal SNP stands out in the
+final results.</p>
 <pre class="r"><code>n &lt;- nrow(X)
 y &lt;- X[,&#39;rs2476601&#39;] + rnorm(n, 0, 0.6)
 head(y)</code></pre>
 <pre><code>## M11062205 M11050406 M11050407 M11070602 M11060912 M11060920 
-##  1.919730  2.969771  3.307155  1.130247  1.300685  1.997526</code></pre>
+## 2.3309187 0.9672142 2.2525853 2.8150093 2.5679744 1.4012525</code></pre>
 </div>
 <div id="run-gwas" class="section level3">
 <h3>Run GWAS</h3>
@@ -780,8 +762,8 @@ head(y)</code></pre>
 chromosome 1, in a real genetic study we would not know where the casual
 SNP(s) we are looking for are located. Therefore, we’d need to run a
 GWAS to see if there are variants are associated with the trait and if
-so, where they are located. As discussed earlier in this blog post, to
-do this we will use <em>marginal regression</em>.</p>
+so, where they are located. To do this we will use <em>marginal
+regression</em>.</p>
 <p>For each SNP, we will fit a model with the SNP as the single
 independent variable and the trait of interest as the dependent
 variable. Looking at our first three SNPs, the models would look like
@@ -794,20 +776,20 @@ tidy(snp1mod)</code></pre>
 <pre><code>## # A tibble: 2 × 5
 ##   term         estimate std.error statistic  p.value
 ##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
-## 1 (Intercept)    1.83      0.134      13.7  8.88e-34
-## 2 X.clean[, 1]   0.0870    0.0748      1.16 2.46e- 1</code></pre>
+## 1 (Intercept)    1.88      0.128      14.6  1.76e-37
+## 2 X.clean[, 1]   0.0883    0.0717      1.23 2.19e- 1</code></pre>
 <pre class="r"><code>tidy(snp2mod)</code></pre>
 <pre><code>## # A tibble: 2 × 5
 ##   term         estimate std.error statistic  p.value
 ##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
-## 1 (Intercept)    1.83      0.107      17.2  2.46e-47
-## 2 X.clean[, 2]   0.0951    0.0654      1.45 1.47e- 1</code></pre>
+## 1 (Intercept)    2.08      0.103     20.3   1.87e-59
+## 2 X.clean[, 2]  -0.0336    0.0629    -0.534 5.93e- 1</code></pre>
 <pre class="r"><code>tidy(snp3mod)</code></pre>
 <pre><code>## # A tibble: 2 × 5
 ##   term         estimate std.error statistic  p.value
 ##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
-## 1 (Intercept)    1.90      0.171     11.1   2.17e-24
-## 2 X.clean[, 3]   0.0435    0.0927     0.469 6.39e- 1</code></pre>
+## 1 (Intercept)     2.27     0.164      13.9  1.36e-34
+## 2 X.clean[, 3]   -0.137    0.0886     -1.54 1.24e- 1</code></pre>
 </div>
 <div id="analyze-chromosome-1" class="section level3">
 <h3>Analyze chromosome 1</h3>
@@ -910,17 +892,16 @@ genotype so we don’t get any data in this area.</p>
 <div id="analyze-all-chromosomes" class="section level3">
 <h3>Analyze all chromosomes</h3>
 <p>Finally, we can analyze all chromosomes. To do this, we simply loop
-over the SNPs in all chromosomes instead of just those in chromosome 1,
-but otherwise the code is the same as above. Unfortunately, my computer
-was struggling with this for the time being, but I will update this site
-shortly with the final plot.</p>
+over the SNPs in all chromosomes instead of just those in chromosome 1.
+Unfortunately, my computer was struggling with this for the time being,
+but I will update this site shortly with the final plot.</p>
 </div>
 <div id="acknowledgemnts" class="section level3">
 <h3>Acknowledgemnts</h3>
 <p>Thank you to <a href="R-bloggers">https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/</a>
-for providing the data for this analysis. Thank you to my professor
-Kelsey Grinde for teaching me this material and helping me understand
-the GWAS procedure in R.</p>
+for providing the data for this analysis as well as to my professor
+Kelsey Grinde for sharing much of the code used in the GWAS above and
+helping solve many problems I ran into when doing this analysis.</p>
 </div>
 </div>
 

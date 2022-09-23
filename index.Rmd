@@ -26,7 +26,7 @@ We can study these genetic variants with something known as a **Genetic- Wide As
 
 As mentioned above, linear regression won't work for a GWAS study. As a result, we can implement **marginal regression**. The following example will use data found on [https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/](R-bloggers) which includes 323 individuals (110 Chinese, 105 Indian and 108 Malay) and 2,527,458 SNPs.
 
-#### Data loading and organization
+### Data loading and organization
 
 The following code chunks outline the steps of importing the genetic data. 
 
@@ -224,6 +224,8 @@ tidy(snp1mod)
 tidy(snp2mod)
 tidy(snp3mod)
 ```
+
+The way we might interpret one of these coefficients, say for example the estimate for SNP 1, is that for every additional minor allele (G for example) that you carry at that position, the trait of interest changes by about 0.05 units. If the trait we were measuring were height, we would expect your height to increase 0.05 inches for every additional minor allele (a value of either 0, 1, or 2).
 
 ### Analyze chromosome 1
 
