@@ -756,7 +756,7 @@ final results.</p>
 y &lt;- X[,&#39;rs3131972&#39;] + rnorm(n, 0, 0.6)
 head(y)</code></pre>
 <pre><code>## M11062205 M11050406 M11050407 M11070602 M11060912 M11060920 
-## 0.8271328 1.0252199 2.7458622 1.5615641 1.0724629 0.7828446</code></pre>
+## 2.9393124 0.6595780 1.5090562 0.5175628 0.5498797 1.5734555</code></pre>
 </div>
 <div id="run-gwas" class="section level3">
 <h3>Run GWAS</h3>
@@ -778,20 +778,20 @@ tidy(snp1mod)</code></pre>
 <pre><code>## # A tibble: 2 × 5
 ##   term         estimate std.error statistic  p.value
 ##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
-## 1 (Intercept)     0.162    0.152       1.07 2.87e- 1
-## 2 X.clean[, 1]    0.792    0.0849      9.34 1.72e-18</code></pre>
+## 1 (Intercept)     0.216    0.149       1.46 1.46e- 1
+## 2 X.clean[, 1]    0.765    0.0831      9.20 4.70e-18</code></pre>
 <pre class="r"><code>tidy(snp2mod)</code></pre>
 <pre><code>## # A tibble: 2 × 5
 ##   term         estimate std.error statistic  p.value
 ##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
-## 1 (Intercept)    0.0542    0.105      0.516 6.06e- 1
-## 2 X.clean[, 2]   0.960     0.0644    14.9   1.35e-38</code></pre>
+## 1 (Intercept)  -0.00806    0.0970   -0.0831 9.34e- 1
+## 2 X.clean[, 2]  1.01       0.0595   16.9    2.80e-46</code></pre>
 <pre class="r"><code>tidy(snp3mod)</code></pre>
 <pre><code>## # A tibble: 2 × 5
-##   term         estimate std.error statistic      p.value
-##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;        &lt;dbl&gt;
-## 1 (Intercept)     0.421     0.206      2.04 0.0420      
-## 2 X.clean[, 3]    0.616     0.112      5.52 0.0000000705</code></pre>
+##   term         estimate std.error statistic  p.value
+##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+## 1 (Intercept)     0.153     0.197     0.780 4.36e- 1
+## 2 X.clean[, 3]    0.767     0.106     7.21  3.94e-12</code></pre>
 <p>The way we might interpret one of these coefficients, say for example
 the estimate for SNP 1, is that for every additional minor allele (G for
 example) that you carry at that position, the trait of interest changes
@@ -887,7 +887,9 @@ order to better identify SNPs with small p-values, and then take the
 negative of this to flip the plot and make it look like the typical
 Manhattan plot. We see a gap in the middle of the plot where the
 centromere of chromosome 1 is located. Centromeres are difficult to
-genotype so we don’t get any data in this area.</p>
+genotype so we don’t get any data in this area. The causal SNP is easy
+to spot colored in navy blue with a <span class="math inline">\(-\text{log}_{10}\)</span>(p-value) close to
+43.</p>
 <pre class="r"><code>chr1.results %&gt;%
   mutate(minuslogp = -log10(P.Value), 
          causalSNP = as.factor(case_when(snp.name == &quot;rs3131972&quot; ~ 1, 
@@ -1107,10 +1109,9 @@ GWAS studies using real data.</p>
 <p>Thank you to <a href="https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/">R-bloggers</a>
 for providing the data for this analysis. Also thank you to my professor
 Kelsey Grinde for putting together a lot of code used in the GWAS above,
-helping solve several problems I ran into when doing this analysis
-(small miscues caused large issues), and for mentioning
-<code>cache=TRUE</code> which will save me lots of time in my career as
-a data scientist :)</p>
+helping solve several (some careless) problems I ran into when doing
+this analysis, and for mentioning <code>cache=TRUE</code> in class which
+will save me lots of time in my career as a data scientist :)</p>
 </div>
 
 

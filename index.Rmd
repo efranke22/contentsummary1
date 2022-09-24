@@ -281,7 +281,7 @@ chr1.results <- chr1.results %>%
 head(chr1.results)
 ```
 
-Finally, we can plot the results. We take the log of the p-value in order to better identify SNPs with small p-values, and then take the negative of this to flip the plot and make it look like the typical Manhattan plot. We see a gap in the middle of the plot where the centromere of chromosome 1 is located. Centromeres are difficult to genotype so we don't get any data in this area.
+Finally, we can plot the results. We take the log of the p-value in order to better identify SNPs with small p-values, and then take the negative of this to flip the plot and make it look like the typical Manhattan plot. We see a gap in the middle of the plot where the centromere of chromosome 1 is located. Centromeres are difficult to genotype so we don't get any data in this area. The causal SNP is easy to spot colored in navy blue with a $-\text{log}_{10}$(p-value) close to 43.
 ```{r}
 chr1.results %>%
   mutate(minuslogp = -log10(P.Value), 
@@ -340,7 +340,7 @@ head(all.results)
 
 When plotting the results, we make one small change to the code. Instead of plotting position along the x axis, we group with an interaction between position and chromosome. This is due to position restarting over again at each chromosome, so it prevents all the points from being plotted on top of one another. It is very easy to pick out the causal SNP and a few of the very correlated surrounding picks from this plot - perhaps adding a little more noise when simulating the trait would make this Manhattan plot look like those typically portrayed in GWAS studies using real data.  
 
-```{r}
+```{r, cache = TRUE}
 all.results %>%
   mutate(minuslogp = -log10(P.Value),
          chr = as.factor(chromosome)) %>%
@@ -354,4 +354,4 @@ all.results %>%
 
 ## Acknowledgements 
 
-Thank you to [R-bloggers](https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/) for providing the data for this analysis. Also thank you to my professor Kelsey Grinde for putting together a lot of code used in the GWAS above, helping solve several problems I ran into when doing this analysis (small miscues caused large issues), and for mentioning `cache=TRUE` which will save me lots of time in my career as a data scientist :)
+Thank you to [R-bloggers](https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/) for providing the data for this analysis. Also thank you to my professor Kelsey Grinde for putting together a lot of code used in the GWAS above, helping solve several (some careless) problems I ran into when doing this analysis, and for mentioning `cache=TRUE` in class which will save me lots of time in my career as a data scientist :)
