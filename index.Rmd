@@ -24,7 +24,7 @@ We can study these genetic variants with something known as a **Genetic- Wide As
 
 ## The Statistics part 
 
-As mentioned above, linear regression won't work for a GWAS study. As a result, we can implement **marginal regression**. The following example will use data found on [https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/](R-bloggers) which includes 323 individuals (110 Chinese, 105 Indian and 108 Malay) and 2,527,458 SNPs.
+As mentioned above, linear regression won't work for a GWAS study. As a result, we can implement **marginal regression**. The following example will use data found on [R-bloggers](https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/) which includes 323 individuals (110 Chinese, 105 Indian and 108 Malay) and 2,527,458 SNPs.
 
 ### Data loading and organization
 
@@ -35,6 +35,7 @@ Load libraries:
 library(snpStats)
 library(tidyverse)
 library(broom)
+library(NatParksPalettes)
 ```
 
 Load data for the Chinese, Indian, and Malay individuals and combine them into one `SnpMatrix`. This process uses `read.plink()`, which reads a genotype matrix, information on the study's individuals, and information on the SNPs.
@@ -53,7 +54,7 @@ SNP_C <- read.plink(pathC[1], pathC[2], pathC[3])
 SNP <- rbind(SNP_M$genotypes, SNP_I$genotypes, SNP_C$genotypes)
 ```
 
-Execute additional data preparation steps recommended by R-bloggers site
+Execute additional data preparation steps recommended by R-bloggers site.
 ```{r}
 # Take one bim map (all 3 maps are based on the same ordered set of SNPs)
 map <- SNP_M$map
@@ -83,12 +84,12 @@ Finally, we can look at the information we have on each SNP. This tells us a few
   
 - `chromosome` is the number chromosome (typically 1-23) that the SNP is located on \
   - 1 is the largest chromosome (most SNPs) and chromosome size typically decreases from there \
-- `snp.name` is the name of the SNP \
-- `cM` stands for *centiMorgans*, which is a unit for genetic distance. It represents an estimate of how far SNPs are from one another along the genome \
-- `position` tells us the base pair position of the SNP, with position being being the first nucleotide in our DNA sequence \
-  - This number restarts from 1 at each chromosome \
-- `allele.1` is one of the alleles at this SNP, here the minor allele \
-- `allele.2` is the other allele at this SNP, here the major allele 
+- `snp.name` is the name of the SNP. \
+- `cM` stands for *centiMorgans*, which is a unit for genetic distance. It represents an estimate of how far SNPs are from one another along the genome. \
+- `position` tells us the base pair position of the SNP, with position being being the first nucleotide in our DNA sequence. \
+  - This number restarts from 1 at each chromosome. \
+- `allele.1` is one of the alleles at this SNP, here the minor allele. \
+- `allele.2` is the other allele at this SNP, here the major allele. 
 
 ```{r}
 head(map)
@@ -96,7 +97,7 @@ head(map)
   
 ### Data cleaning
 
-One useful piece of information not contained in the data mentioned in **minor allele frequency (MAF)**. This represents the frequency of the minor allele in the dataset. We can add this to our SNP information using the `snpstats` package and add MAF to `map`, our dataframe that gives us SNP information.
+One useful piece of information not contained in the data is the **minor allele frequency (MAF)**. This represents the frequency of the minor allele in the dataset. We can add this to our SNP information using the `snpstats` package and add MAF to `map`, our dataframe that gives us SNP information.
 
 ```{r}
 #calculate MAF
@@ -140,7 +141,7 @@ dim(map)
 
 After filtering, we have 1,651,345 SNPs remaining. Therefore, we removed 876,113 SNPs.
 
-However, we are not done cleaning the data. Below, when looking at the first six rows of `map`, we see two `NA` values for `allele.1`. In these rows, the minor allele frequency is not quite 0, but it is very small. In fact, in the first row of of this data frame the MAF is `1/646`, or `0.00157`. This represents that out of the 646 alleles studied (2 alleles for each of the 323 people in the data), there was only one minor allele. On SNP 4 in the data, there were only 3 minor alleles (`3/646 = 0.00465`). 
+However, we are not done cleaning the data. Below, when looking at the first six rows of `map`, we see two `NA` values for `allele.1`. In these rows, the minor allele frequency is not quite 0, but it is very small. In fact, in the first row of this data frame the MAF is `1/646`, or `0.00157`. This represents that out of the 646 alleles studied (2 alleles for each of the 323 people in the data), there was only one minor allele. On SNP 4 in the data, there were only 3 minor alleles (`3/646 = 0.00465`). 
 
 ```{r}
 head(map)
@@ -162,7 +163,7 @@ map %>%
         strip.text = element_text(family = "mono"))
 ```
 
-These plots really surprised me. Initially my plan was just to remove all SNPs with a MAF < 1%, figuring that would filter out all SNPs with an `NA` value for allele 1. However, in the plot above on the left we see that while the majority of allele 1 missing SNPs have a MAF < 1%, some have a MAF close to 11%, meaning about `71/646` minor alleles *were* detected yet an `NA` value was still recorded. While I have a very minimal understanding allele reading machines, I would not guess that this `NA` is a machine reading error but rather that something else is going on. Given this information, I decided to compromise and remove all SNPs with a MAF < 3%, as well as all other SNPs with an `NA` value for allele 1. This brings us from 1,651,345 SNPs to 1,293,100 SNPs.
+These plots really surprised me. Initially my plan was just to remove all SNPs with a MAF < 1%, figuring that would filter out all SNPs with an `NA` value for allele 1. However, in the plot above on the left we see that while the majority of allele 1 missing SNPs have a MAF < 1%, some have a MAF close to 11%, meaning about `71/646` minor alleles *were* detected yet an `NA` value was still recorded. While I have a very minimal understanding of gene reading machinery, I would not guess that this `NA` is not a machine reading error but rather that something else is going on. Given this information, I decided to compromise and remove all SNPs with a MAF < 3%, as well as all other SNPs with an `NA` value for allele 1. This brings us from 1,651,345 SNPs to 1,293,100 SNPs.
 
 ```{r}
 map.clean <- map %>%
@@ -171,7 +172,7 @@ map.clean <- map %>%
 dim(map.clean)
 ```
 
-One downside to this whole process of removing SNPs with small MAFs is that a major goal of GWAS studies is detect to rare variations on SNPs that could be associated with the trait of interest. Removing SNPs when the MAF is small may result in removing critical data to the study. This is tradeoff emphasizes that makes having more people in your GWAS that may have that rare variation on a SNP is helpful and important in forming meaningful results.
+One downside to this whole process of removing SNPs with small MAFs is that a major goal of GWAS studies is detect to rare variations on SNPs that could be associated with the trait of interest. Removing SNPs where the MAF is small may result in removing critical data to the study. This is tradeoff emphasizes that having more people in your GWAS is helpful and important in forming meaningful results about potentially rare variants.
 
 Before moving on, we must complete one final data cleaning step. The `snpstats` package uses a format in which genotypes are coded as 01, 02, and 03, with 00 representing missing values.
 
@@ -205,7 +206,7 @@ To create a quantitative trait `y` we will use information dependent on the geno
 
 ```{r}
 n <- nrow(X)
-y <- X[,'rs2476601'] + rnorm(n, 0, 0.6)
+y <- X[,'rs3131972'] + rnorm(n, 0, 0.6)
 head(y)
 ```
 
@@ -225,7 +226,7 @@ tidy(snp2mod)
 tidy(snp3mod)
 ```
 
-The way we might interpret one of these coefficients, say for example the estimate for SNP 1, is that for every additional minor allele (G for example) that you carry at that position, the trait of interest changes by about 0.05 units. If the trait we were measuring were height, we would expect your height to increase 0.05 inches for every additional minor allele (a value of either 0, 1, or 2).
+The way we might interpret one of these coefficients, say for example the estimate for SNP 1, is that for every additional minor allele (G for example) that you carry at that position, the trait of interest changes by about 0.05 units. If the trait we were measuring were height, we would expect your height to increase 0.89 inches for every additional minor allele (a value of either 0, 1, or 2) at SNP 1.
 
 ### Analyze chromosome 1
 
@@ -240,7 +241,7 @@ length(chromosome1.snps)
 Next, loop through each of the SNPs, fitting a linear regression model at each one. For each model, we’ll record the estimates (`betas`), standard errors (`ses`), test statistics (`tstats`) and p-values (`pvals`) for the coefficient of interest, which is the slope.
 
 ```{r, cache=TRUE}
-# set up empty vectors for storing results
+# set up empty vectors for storing the results
 betas <- c()
 ses <- c()
 tstats <- c()
@@ -283,18 +284,74 @@ head(chr1.results)
 Finally, we can plot the results. We take the log of the p-value in order to better identify SNPs with small p-values, and then take the negative of this to flip the plot and make it look like the typical Manhattan plot. We see a gap in the middle of the plot where the centromere of chromosome 1 is located. Centromeres are difficult to genotype so we don't get any data in this area.
 ```{r}
 chr1.results %>%
-  mutate(minuslogp = -log10(P.Value)) %>%
-  ggplot(aes(x = position, y = minuslogp)) + 
+  mutate(minuslogp = -log10(P.Value), 
+         causalSNP = as.factor(case_when(snp.name == "rs3131972" ~ 1, 
+                               TRUE ~ 0))) %>%
+  ggplot(aes(x = position, y = minuslogp, color = causalSNP)) + 
   geom_point() + 
+  scale_color_manual(values = c("goldenrod", "navy"))+
   labs(x = 'position (bp)', y = expression(paste('-log'[10],'(p-value)'))) + 
   scale_x_continuous(labels = scales::comma)+
-  theme_classic()
+  theme_classic()+
+  theme(legend.position = "none")
 ```
 
 ### Analyze all chromosomes
 
-Finally, we can analyze all chromosomes. To do this, we simply loop over the SNPs in all chromosomes instead of just those in chromosome 1. Unfortunately, my computer was struggling with this for the time being, but I will update this site shortly with the final plot. 
+Finally, we can analyze all chromosomes. To do this, we simply loop over the SNPs in all chromosomes instead of just those in chromosome 1. 
 
-### Acknowledgemnts 
+```{r, cache=TRUE}
+# set up empty vectors for storing results
+betas <- c()
+ses <- c()
+tstats <- c()
+pvals <- c()
 
-Thank you to [https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/](R-bloggers) for providing the data for this analysis as well as to my professor Kelsey Grinde for sharing much of the code used in the GWAS above and helping solve many problems I ran into when doing this analysis.
+# loop through chromosome all SNPs
+for(i in 1:ncol(X.clean)){ 
+  # print out occasional updates telling us what SNP we're analyzing
+  if(i %% 10000 == 0) print(paste('Analyzing SNP', i)) 
+  # fit model
+  mod <- lm(y ~ X.clean[,i])
+  # get coefficient information
+  coefinfo <- tidy(mod)
+  # record estimate, SE, test stat, and p-value
+  betas[i] <- coefinfo$estimate[2]
+  ses[i] <- coefinfo$std.error[2]
+  tstats[i] <- coefinfo$statistic[2]
+  pvals[i] <- coefinfo$p.value[2]
+}
+```
+
+```{r}
+# start with the map info for the chr 1 SNPs
+all.results <- map.clean
+
+# then add betas, SEs, etc.
+all.results <- all.results %>%
+  mutate(Estimate = betas,
+         Std.Error = ses,
+         Test.Statistic = tstats,
+         P.Value = pvals)
+
+# look at results
+head(all.results)
+```
+
+When plotting the results, we make one small change to the code. Instead of plotting position along the x axis, we group with an interaction between position and chromosome. This is due to position restarting over again at each chromosome, so it prevents all the points from being plotted on top of one another. It is very easy to pick out the causal SNP and a few of the very correlated surrounding picks from this plot - perhaps adding a little more noise when simulating the trait would make this Manhattan plot look like those typically portrayed in GWAS studies using real data.  
+
+```{r}
+all.results %>%
+  mutate(minuslogp = -log10(P.Value),
+         chr = as.factor(chromosome)) %>%
+  ggplot(aes(x = chr, y = minuslogp, group = interaction(chr, position), color = chr)) + 
+  geom_point(position = position_dodge(0.8)) +
+  scale_color_manual(values=natparks.pals("DeathValley",22))+
+  labs(x = 'chromosome', y = expression(paste('-log'[10],'(p-value)')))+
+  theme_classic()+
+  theme(legend.position = "none")
+```
+
+## Acknowledgements 
+
+Thank you to [R-bloggers](https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/) for providing the data for this analysis. Also thank you to my professor Kelsey Grinde for putting together a lot of code used in the GWAS above, helping solve several problems I ran into when doing this analysis (small miscues caused large issues), and for mentioning `cache=TRUE` which will save me lots of time in my career as a data scientist :)
