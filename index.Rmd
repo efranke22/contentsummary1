@@ -1,7 +1,7 @@
 ---
-title: 'What I know about Statistical Genetics so far'
+title: 'A summary of what I have learned in Statistical Genetics'
 author: "Erin Franke"
-date: "9/23/2022"
+date: "October 19, 2022"
 output: 
   html_document:
     theme: flatly
@@ -12,7 +12,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## The Genetics part
+## Some important genetic concepts 
 
 Statistical genetics is based around studying **genetic variants**.
 
@@ -22,11 +22,9 @@ We can study these genetic variants with something known as a **Genetic- Wide As
 
 ![](gwas.png){width='90%'}
 
-## The Statistics part 
-
 As mentioned above, linear regression won't work for a GWAS study. As a result, we can implement **marginal regression**. The following example will use data found on [R-bloggers](https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/) which includes 323 individuals (110 Chinese, 105 Indian and 108 Malay) and 2,527,458 SNPs.
 
-### Data loading and organization
+## Data loading and organization
 
 The following code chunks outline the steps of importing the genetic data. 
 
@@ -36,10 +34,12 @@ library(snpStats)
 library(tidyverse)
 library(broom)
 library(NatParksPalettes)
+library(parallel)
+library(GGally)            
 ```
 
 Load data for the Chinese, Indian, and Malay individuals and combine them into one `SnpMatrix`. This process uses `read.plink()`, which reads a genotype matrix, information on the study's individuals, and information on the SNPs.
-```{r, cache=TRUE}
+```{r}
 load("/Users/erinfranke/Desktop/GWAStutorial-master/conversionTable.RData")
 
 pathM <- paste("/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/108Malay_2527458snps", c(".bed", ".bim", ".fam"), sep = "")
@@ -64,9 +64,12 @@ colnames(map) <- c("chromosome", "snp.name", "cM", "position", "allele.1", "alle
 mappedSNPs <- intersect(map$SNP, names(conversionTable))
 newIDs <- conversionTable[match(map$SNP[map$SNP %in% mappedSNPs], names(conversionTable))]
 map$SNP[rownames(map) %in% mappedSNPs] <- newIDs
+
+#Create smaller SNP dataframe later for analysis
+SNP2 <-SNP[1:323, 1:500]
 ```
 
-### Get a sense of the data 
+## Getting a sense of the data 
 
 First, get information about the genotype data. As stated earlier, we have 323 individuals and 2,527,458 SNPs.
 ```{r}
@@ -80,7 +83,7 @@ individuals <- rbind(SNP_M$fam, SNP_I$fam, SNP_C$fam)
 head(individuals)
 ```
 
-Finally, we can look at the information we have on each SNP. This tells us a few things: 
+Finally, we can look at the information we have on each SNP. This tells us a few things:
   
 - `chromosome` is the number chromosome (typically 1-23) that the SNP is located on \
   - 1 is the largest chromosome (most SNPs) and chromosome size typically decreases from there \
@@ -95,7 +98,7 @@ Finally, we can look at the information we have on each SNP. This tells us a few
 head(map)
 ```
   
-### Data cleaning
+## Data cleaning
 
 One useful piece of information not contained in the data is the **minor allele frequency (MAF)**. This represents the frequency of the minor allele in the dataset. We can add this to our SNP information using the `snpstats` package and add MAF to `map`, our dataframe that gives us SNP information.
 
@@ -118,14 +121,14 @@ $$E[\bf{y}|\bf{X}] = \boldsymbol{\beta} X$$
 
 Further exploring the matrix format, it would look like this:
 $$X\boldsymbol{\beta} = \begin{bmatrix}
-1 & 0 & . & .\\
-1 & 0 & . & .
+1 & 0 \\
+1 & 0 \\
+. & . \\
+. & . \\
 \end{bmatrix}
 \begin{bmatrix}
 \beta_0\\
 \beta_1 \\
-. \\
-.
 \end{bmatrix}$$
 
 Executing this multiplication, we just get $1 * \beta_0 = 0$. The is problematic because we have linear dependence. You can get the column of minor allele counts by multiplying the intercept column by 0 - in other words, the minor allele count column is a linear combination of the intercept column. This makes our design matrix not be full rank, making $X^TX$ not invertible and the least squares estimator not defined.
@@ -172,7 +175,7 @@ map.clean <- map %>%
 dim(map.clean)
 ```
 
-One downside to this whole process of removing SNPs with small MAFs is that a major goal of GWAS studies is detect to rare variations on SNPs that could be associated with the trait of interest. Removing SNPs where the MAF is small may result in removing critical data to the study. This is tradeoff emphasizes that having more people in your GWAS is helpful and important in forming meaningful results about potentially rare variants.
+One downside to this whole process of removing SNPs with small MAFs is that a major goal of GWAS studies is detect to rare variations on SNPs that could be associated with the trait of interest. Removing SNPs where the MAF is small may result in removing critical data to the study. This is trade off emphasizes that having more people in your GWAS is helpful and important in forming meaningful results about potentially rare variants.
 
 Before moving on, we must complete one final data cleaning step. The `snpstats` package uses a format in which genotypes are coded as 01, 02, and 03, with 00 representing missing values.
 
@@ -193,7 +196,7 @@ X.clean <- X[,colnames(X) %in% map.clean$snp.name]
 dim(X.clean)
 ```
 
-### Trait Simulation
+## Trait Simulation
 
 As discussed earlier, the `affected` column in our individuals dataset is completely missing values. Therefore, for the purposes of demonstrating how to conduct a GWAS, we will simulate a trait using a random SNP of interest. I randomly chose SNP *rs3131972*. This SNP is located on chromosome 1 near gene FAM87B. A is the major allele in comparison to G, matching what we see in our data. The minor allele frequency is 23.4%.
 
@@ -206,17 +209,18 @@ To create a quantitative trait `y` we will use information dependent on the geno
 
 ```{r}
 n <- nrow(X)
-y <- X[,'rs3131972'] + rnorm(n, 0, 0.6)
+y <- X[,'rs3131972'] + rnorm(n, 0, 1.5)
 head(y)
 ```
 
-### Run GWAS
+## Run GWAS
 
 While we know that our causal SNP *rs3131972* is located on chromosome 1, in a real genetic study we would not know where the casual SNP(s) we are looking for are located. Therefore, we’d need to run a GWAS to see if there are variants are associated with the trait and if so, where they are located. To do this we will use *marginal regression*.
 
 For each SNP, we will fit a model with the SNP as the single independent variable and the trait of interest as the dependent variable. Looking at our first three SNPs, the models would look like this: 
 
 ```{r}
+set.seed(12)
 snp1mod <- lm(y ~ X.clean[,1])
 snp2mod <- lm(y ~ X.clean[,2])
 snp3mod <- lm(y ~ X.clean[,3])
@@ -226,7 +230,7 @@ tidy(snp2mod)
 tidy(snp3mod)
 ```
 
-The way we might interpret one of these coefficients, say for example the estimate for SNP 1, is that for every additional minor allele (G for example) that you carry at that position, the trait of interest changes by about 0.05 units. If the trait we were measuring were height, we would expect your height to increase 0.89 inches for every additional minor allele (a value of either 0, 1, or 2) at SNP 1.
+The way we might interpret one of these coefficients, say for example the estimate for SNP 1, is that for every additional minor allele (G for example) that you carry at that position, the trait of interest changes by about 0.33 units. If the trait we were measuring were height, we would expect your height to increase about 0.33 inches for every additional minor allele (a value of either 0, 1, or 2) at SNP 1.
 
 ### Analyze chromosome 1
 
@@ -247,10 +251,8 @@ ses <- c()
 tstats <- c()
 pvals <- c()
 
-# loop through chromosome 1 SNPs
+# loop through SNPs in chromosme 1
 for(i in chromosome1.snps){
-  # print out occasional updates telling us what SNP we're analyzing
-  if(i %% 5000 == 0) print(paste('Analyzing SNP', i)) 
   # fit model
   mod <- lm(y ~ X.clean[,i])
   # get coefficient information
@@ -281,13 +283,14 @@ chr1.results <- chr1.results %>%
 head(chr1.results)
 ```
 
-Finally, we can plot the results. We take the log of the p-value in order to better identify SNPs with small p-values, and then take the negative of this to flip the plot and make it look like the typical Manhattan plot. We see a gap in the middle of the plot where the centromere of chromosome 1 is located. Centromeres are difficult to genotype so we don't get any data in this area. The causal SNP is easy to spot colored in navy blue with a $-\text{log}_{10}$(p-value) close to 43.
+Lastly, we can plot the results. We take the log of the p-value in order to better identify SNPs with small p-values, and then take the negative of this to flip the plot and make it look like the typical Manhattan plot. We see a gap in the middle of the plot where the centromere of chromosome 1 is located. Centromeres are difficult to genotype so we don't get any data in this area. The causal SNP is easy to spot colored in navy blue with a $-\text{log}_{10}$(p-value) close to 12.
+
 ```{r}
 chr1.results %>%
   mutate(minuslogp = -log10(P.Value), 
          causalSNP = as.factor(case_when(snp.name == "rs3131972" ~ 1, 
                                TRUE ~ 0))) %>%
-  ggplot(aes(x = position, y = minuslogp, color = causalSNP)) + 
+  ggplot(aes(x = position, y = minuslogp, color = causalSNP)) +
   geom_point() + 
   scale_color_manual(values = c("goldenrod", "navy"))+
   labs(x = 'position (bp)', y = expression(paste('-log'[10],'(p-value)'))) + 
@@ -307,10 +310,8 @@ ses <- c()
 tstats <- c()
 pvals <- c()
 
-# loop through chromosome all SNPs
+# loop through all SNPs
 for(i in 1:ncol(X.clean)){ 
-  # print out occasional updates telling us what SNP we're analyzing
-  if(i %% 10000 == 0) print(paste('Analyzing SNP', i)) 
   # fit model
   mod <- lm(y ~ X.clean[,i])
   # get coefficient information
@@ -338,13 +339,13 @@ all.results <- all.results %>%
 head(all.results)
 ```
 
-When plotting the results, we make one small change to the code. Instead of plotting position along the x axis, we group with an interaction between position and chromosome. This is due to position restarting over again at each chromosome, so it prevents all the points from being plotted on top of one another. It is very easy to pick out the causal SNP and a few of the very correlated surrounding picks from this plot - perhaps adding a little more noise when simulating the trait would make this Manhattan plot look like those typically portrayed in GWAS studies using real data.  
+When plotting the results, we make one small change to the code. Instead of plotting position along the x axis, we group with an interaction between position and chromosome. This is due to position restarting over again at each chromosome, so it prevents all the points from being plotted on top of one another.   
 
 ```{r, cache = TRUE}
 all.results %>%
   mutate(minuslogp = -log10(P.Value),
          chr = as.factor(chromosome)) %>%
-  ggplot(aes(x = chr, y = minuslogp, group = interaction(chr, position), color = chr)) + 
+  ggplot(aes(x = chr, y = minuslogp, group = interaction(chr, position), color = chr)) + #interaction prevents chromosomes from overlapping
   geom_point(position = position_dodge(0.8)) +
   scale_color_manual(values=natparks.pals("DeathValley",22))+
   labs(x = 'chromosome', y = expression(paste('-log'[10],'(p-value)')))+
@@ -352,6 +353,350 @@ all.results %>%
   theme(legend.position = "none")
 ```
 
+## Introducing Multiple Testing
+
+In the plot Manhattan plot above we were able to visually pick out the SNP that we know to be associated with the trait of interest. However, in a real GWAS we do know which SNPs are associated with the trait of interest so this is not the case. As a result, we need a way to decide if a p-value is small enough to be *statistically significant* and/or to warrant follow-up.  
+
+Reading through some scientific articles, I have seen a wide variety of thresholds be used. These thresholds largely fall between $5 \times 10^{-7}$ on the higher end and $1 \times 10^{-9}$ on the lower end, which are obviously much smaller than the conventionally accepted $0.05$ threshold. Why is this, and how can we determine which threshold to use? 
+
+### Hypothesis Testing Background
+
+Before getting into thresholds, it is important to understand the basics of hypothesis testing. The goal is to make a decision between two conflicting theories, which are labeled as the null and alternative hypothesis. In this situation, the null hypothesis $H_0$ is that the specific SNP *is not* associated with the trait of interest. The alternative hypothesis $H_A$ is that the specific SNP *is* associated with the trait of interest. Each SNP is tested independently for a relationship with the trait, and if the p-value resulting from the test falls below the chosen threshold then $H_0$ can be rejected. 
+
+The example below shows a test of SNP number 830,000 in this dataset. Its p-value is $0.34$, indicating that at the threshold of $5 \times 10^{-7}$ we would fail to reject the null hypothesis and conclude this SNP to not be associated with our trait of interest (which we rightfully know to be true in this simulation).
+
+```{r}
+set.seed(453)
+snp1mod <- lm(y ~ X.clean[,830000])
+tidy(snp1mod)
+```
+
+Another key piece of information related to hypothesis testing is errors. Ideally, we want to reject $H_0$ when it is wrong and accept $H_0$ when it is right, but unfortunately this does not always happen. We call rejecting the null hypothesis $H_0$ when it is true a **type I error**, and failing to reject the alternative hypothesis when it is true a **type II error**. For a given test, the probability of making a type I error is $\alpha$, our chosen threshold, meaning the probability of making a type I error is in our control. Type II errors are depend on a larger number of factors. The probability of committing a type II error is 1 minus the power of the test, where power is the probability of correctly rejecting the null hypothesis. To increase the power of a test, you can increase $\alpha$ (though this increases type I error rate) and/or increase the sample size (here the number of people in our study).
+
+In the context of the data, would be it better to commit a type I or type II error? In this situation, committing a type I error would mean concluding a SNP is associated with the trait of interest when in reality it is not, and committing a type II error would mean concluding a SNP is has no relationship to the trait of interest when it actually does. A harm of the type I error is investing additional time and money into studying that particular SNP and/or incorrectly giving those impacted by the disease hope that you are discovering potential causes of it. For a type II error, you are denoting SNPs associated with the trait of interest as insignificant and passing up key information that could be useful in solving a disease. The harms of both are highly unfortunate, however I would lean more on the side of minimizing the occurrence of type II errors which in turn would mean using a threshold on the slightly higher end. 
+
+### Getting back into the threshold
+
+As mentioned earlier, thresholds in genetic studies commonly fall between $5 \times 10^{-7}$ and $1 \times 10^{-9}$. Why is this?
+
+Let's say we are running tests for association with our trait of interest on just the 100,766 SNPs in chromosome 1 and for simplicity that the tests are **independent**. If we are conducting a test on just the first of those SNPs and use $\alpha = 0.05$, the probability of making a type I error is 0.05. However, the probability of making a type I error in all **100,766 tests** needed for the SNPs of the first chromosome is 
+$$P(\text{at least 1 Type I error}) = 1 - P(\text{no error test 1}) \times... \times P(\text{no error test 100,766})$$
+$$ = 1 - [1-0.05]^{100,766} = \text{essentially } 1$$
+
+With a threshold of 0.05 and independent tests, the probability of having at least one type I error (or the **family-wise error rate (FWER)**) for SNPs on chromosome 1 is essentially 100% as shown above. This makes it obvious that a smaller threshold is needed. If we were to use $5 \times 10^{-7}$, this probability would fall to right around 0.05!
+
+$$ = 1 - [1-0.0000005]^{100,766} = 0.04913$$
+
+The threshold $5 \times 10^{-7}$ didn't just appear out of thin air. Statisticians came up with this threshold using what is called the **Bonferroni Correction**, which is a technique that gives a new significance threshold by dividing the desired family wise error rate by the number of tests conducted. Therefore, with our data if we wanted a 5% probability of a type I error on chromosome 1 we would use the threshold $4.962 \times 10^{-7}$.
+
+$$ \text{Bonferroni threshold} = \frac{\text{FWER}}{\text{ # tests}} = \frac{0.05}{100,766} = 4.962 \times 10^{-7}$$
+
+If we wanted a 5% probability of a type I error across **all** chromosomes we would decrease the threshold to $3.867 \times 10^{-8}$ as there are 1,293,000 SNPs in this dataset.
+
+$$ \text{Bonferroni threshold} = \frac{\text{FWER}}{\text{ # tests}} = \frac{0.05}{1,293,100} = 3.867 \times 10^{-8}$$
+
+### Accounting for correlation
+
+#### Nearby SNPs are correlated
+
+We just came to the conclusion that for our dataset we would use a threshold of $3.867 \times 10^{-8}$ to determine whether or a not SNP may have a relationship with the trait of interest. However, in doing this we made one key assumption, which is that our tests are independent from one another. Unfortunately, this is certainly not the case due to **linkage disequalibrium**, which as stated in [Science Direct](https://www.sciencedirect.com/topics/neuroscience/linkage-disequilibrium) is the idea that two markers in close physical proximity are correlated in a population and are in association more than would be expected with random assortment. This concept of correlated SNPs is demonstrated by the plot below, which plots the linkage disequalibrium matrix for the first 200 SNPs on chromosome 1. 
+
+```{r}
+chr1_200 <- SNP[1:323, 1:200]
+hapmap.ld <- ld(chr1_200, depth = 199, stats = "R.squared", symmetric = TRUE)
+color.pal <- natparks.pals("Acadia", 10)
+image(hapmap.ld, lwd = 0, cuts = 9, col.regions = color.pal, colorkey = TRUE)
+```
+
+If you look closely, you can see that along the diagonal there is a higher concentration of orange, meaning that neighboring SNPs are highly correlated with one another. However, this is a little hard to see because of all the white lines. White isn't a color on the correlation legend, so why are they there?
+
+The white lines are occurring at monomorphic SNPs. If we wanted to calculate the correlation between two SNPs (X and Y) we would use the following equation:
+
+$$r = \frac{\sum_{i=1}^n(x_i -
+\bar{x})(y_i - \bar{y})}{\sqrt{\sum_{i=1}^n(x_i - \bar{x})^2
+\sum_{i=1}^n(y_i - \bar{y})^2}}$$
+
+If we consider SNP X to be monomorphic, that means there are 0 copies of the minor allele for all people in our dataset. In the equation above, that means $x_1 = ... = x_{323} = 0$. This means the sample average $\bar{x}$ is also 0 and thus $x_i - \bar{x} = 0 - 0 = 0$ for individuals $i = 1, \dots, 323$. Plugging this information in, we get an undefined correlation and is what the white represents. 
+
+$$r = \frac{\sum_{i=1}^{323} 0 \times (y_i -
+\bar{y})}{\sqrt{0 \times \sum_{i=1}^{323}(y_i - \bar{y})^2}} =
+\frac{0}{0}$$
+
+Removing the monomorphic SNPs from our LD matrix gets rid of over 120 monomorphic SNPs and better shows how highly correlated nearby SNPs are. 
+```{r}
+#get monomorphic SNPs only
+maf_chr1_200 <- col.summary(chr1_200)$MAF
+mono <- which(maf_chr1_200 == 0)
+
+# calculate LD on polymorphic SNPs only
+hapmap.ld.nomono <- ld(chr1_200[,-mono], depth = 199-length(mono), stats = "R.squared", symmetric = TRUE)
+
+# plot 
+image(hapmap.ld.nomono, lwd = 0, cuts = 9, col.regions = color.pal, colorkey = TRUE)
+```
+
+#### Getting a threshold with simulation
+
+To see how the correlation impacts our threshold for a given FWER, we can use simulation. The process for simulation goes as follows: 
+
+1. Simulate a null trait, meaning a trait not associated with any of the SNPs. \
+2. Run GWAS to test the association between the simulated null trait and each SNP in our dataset. After that record the smallest p-value from this GWAS. \
+3. Repeat steps 1 and 2 many times. In real genetic studies, this is usually on the scale of 1,000-10,000 times. \
+4. Look at the p-values saved from those simulation replicates. Sort them from smallest to largest and find the number at which 5% (desired FWER) of p-values are smaller than that number. This is the significance threshold. \
+
+This process is very computationally expensive, especially when 10,000 replications are completed. Each dataset has a different level of correlation between SNPs which is why there is no one widely accepted threshold for a given number of SNPs. This process can take over a month on a personal computer and as a result people working in statistical genetics professionally connect to multiple remote computers or some kind of super computer to run their code (I am still learning about this). For this example, we will complete only 1,000 replications and use the polymorphics SNPs from only the first 500 SNPs of chromosome 1. After removing monomorphic SNPs, 211 polymorphic SNPs remain. 
+
+```{r}
+# make genotype matrix into form of 0, 1, and 2s
+snp_500 <- as(SNP2, "numeric")
+dim(snp_500)
+
+# calculate MAF
+maf <- col.summary(SNP2)$MAF
+
+# find monomorphic SNPs
+monomorphic <- which(maf == 0) 
+
+# filter genotype matrix to remove monomorphic SNPs
+snp_500 <- snp_500[,-monomorphic]
+
+# check the dimensions after filtering
+dim(snp_500)
+```
+
+The code for the simulation is shown below. To minimize computation, I used the `mclapply()` function from the parallel package. This allows me to split computation across all four cores of my computer. When I used `replicate()`, running 1,000 replications took 7 minutes and 30 seconds. With `mclapply()`, the process took just shy of 5 minutes for a reduction of about 33%. In other instances that I have used `mclapply()`, the reduction has been closer to 60% so I think it varies with what it you are doing and what else is running on your computer. Overall, if we wanted to complete 10,000 replications across all SNPs the benefits of `mclapply()` would still be nowhere near enough, but it a nice tip to have when running things that take less than a couple hours. 
+
+```{r, cache = TRUE}
+do_one_sim<- function(i){
+  
+  # simulate null trait
+  y <- rnorm(n = 323, mean = 0, sd = 1)
+  
+  # implement GWAS
+  pvals <- c()
+  for(i in 1:211){
+    mod <- lm(y ~ snp_500[,i])
+    pvals[i] <- tidy(mod)$p.value[2]
+  }
+  # record smallest p-value
+  min(pvals)
+}
+
+# Run code with mclapply()
+set.seed(494)
+simresmclapply <- mclapply(1:1000, do_one_sim, mc.cores = 4) 
+quantile(simresmclapply %>% as.data.frame(), 0.05)
+
+# Run code with replicate()
+set.seed(494)
+simres3 <- replicate(1000, do_one_sim())
+```
+
+From this simulation we learn that the optimal threshold for this specific set of data is 0.00039. Using the Bonferroni correction on the same set of SNPs would have yielded a threshold of $\frac{0.05}{211} = 0.00024$. Due to tests being correlated, we are effectively conducting fewer tests which results in the simulated threshold being higher than the Bonferroni corrected threshold which treats the tests independently (in this case, they really aren't too different but its possible that using a larger number of SNPs would better highlight their correlation and you'd see more of a difference). This exemplifies that the Bonferroni correction is too conservative - it suggests a significance threshold that is smaller than we truly need it to be. As a result, we get more type II errors and lower power. As I mentioned earlier, the harm of type II errors is that they conclude a SNP is has no relationship to the trait of interest when in reality it does, causing researchers to potentially miss out on key information to helping solve a disease. Thus, if I had the needed time and resources when running GWAS in real life I would lean towards choosing a threshold using simulation instead of Bonferroni. 
+
+## Switching gears to genetic ancestry
+
+While so far I have mostly talked about using statistics to identify SNPs associated with a particular trait, this is not the only thing statistical geneticists do. Companies like [23andMe](https://www.23andme.com) or [AncestryDNA](https://www.ancestry.com) profit by selling DNA testing kits and returning the customer with a comprehensive ancestry breakdown. How do they do this?
+
+What genetic ancestry does is look at the ancestral origin of the genetic material we actually inherited. While we often think of being "1/4 Irish" or "1/8 North African", we don't actually inherit exactly 1/4 of our grandparents' genetic material. As DNA is passed from one generation to the next, **recombination** events happen that shuffle up the genetic material. So while we have the same *genealogical ancestry* as our siblings, *genetic ancestry* isn't the same. We can think of our genetic ancestry in two ways - locally and globally. **Local ancestry** refers to inheriting a specific part of your genome from an ancestor of a particular category. **Global ancestry** looks across the whole genome and refers to inheriting a *proportion* of your genome from an ancestor of a particular category. 
+
+There are difficulties to determining someone's local and global ancestry. It is hard to figure out which ancestor you got each portion of your genome from, and you need good information about which ancestry categories those ancestors belonged to. Due to these challenges, the focus is more on which segments of your genome are *similar* to individuals from a specific category. There are still challenges with this, which include how to define "similarity", at what level to define categories (Swedish vs Scandinavian vs European), and finding people from each category to compare your genome to. The two large classes of statistical methods that are used to infer genetic similarity are machine learning tools (including PCA, regression forests, and support vector machines) and model-based, biologically informed approaches (including bayesian methods, maximum likelihood estimation, and others).
+
+### The Genetic Ancestry of African Americans, Latinos, and European Americans across the U.S.
+
+To learn more about genetic ancestry, we read a paper in class titled "The Genetic Ancestry of African Americans, Latinos, and European Americans Across the United States" published in 2015 and written by Katarzyna Bryc, Eric Y. Durand, Michael J. Macpherson, David Reich, and Joanna Mountain. This study looks at the genetic ancestry of 5,269 African-Americans, 8,663 Latinos, and 148,789 European Americans who are 23andMe customers and shows that historical interactions between the groups are present in the genetic-ancestry of Americans today. This paper was very dense, but I had a few main takeaways from it. 
+
+First, the authors used what they called "Ancestry Composition" which assigns ancestry labels to short local phased genomic regions and produces local ancestry proportions and confidence scores. This method provides ancestry proportions for several worldwide populations at each window the genome. If a window has a majority of a continental ancestry (>51%), that window is counted in the number of windows inherited from the ancestry. So to estimate the proportion of a particular ancestry someone is, you divide the number of windows of that ancestry they have by the total number of windows studied.
+
+The authors also wanted to understand the time frame of admixture events, and to do so they used simple admixture models and grid search optimization. With this method and their ancestry composition method described above, they were able to come up with some interesting results. They were able to find differences in ancestry proportions between slave and free states and learned 1/5 of Africans have Native American ancestry. For the Latino group, they saw high levels of Iberian ancestry appear in areas of high Native American ancestry. Additionally, the noted that European ancestry not homogenous across US, which likely reflects immigration patterns of different ethnic groups.
+
+### Genetic Ancestry and its confounding role in GWAS
+
+Genetic ancestry is not only studied to determine whether or not we can see historical interactions present in the genetics of Americans today. Genetic ancestry is also important because it is a potential **confounding variable** in GWAS. When we are trying to determine if a particular SNP has a relationship with our trait of interest, we have to keep in mind the role of ancestry. Ancestry has a relationship with genotypes because the allele frequency of the SNP we're testing differs across ancestral populations. Additionally, ancestry can have a relationship with our trait of interest - environmental factors or causal SNPs in other parts of the genome can differ across ancestry groups.
+
+Knowing that genetic ancestry is a confounding variable, we should adjust for it in our GWAS models with the following equation, where $y$ is the trait, $x_j$ is the number of minor alleles at position $j$, and $\pi$ is the genetic ancestry. 
+
+$$E[y|x_j, \pi] = \alpha + \beta_j x_j + \gamma\pi \\$$
+
+Before completing the GWAS, we will need to *infer* genetic ancestry using one of the methods mentioned earlier. Here we will use PCA.
+
+### PCA background 
+
+Principal component analysis (PCA) is a widely used technique for **dimension reduction**. Dimension reduction aims to represent the information within our data with fewer variables, which is perfect for genetic data where we have millions of SNPs. With PCA, we are specifically looking for **linear transformation** of our data that explains the most variability. This linear representation is composed of **principal components**, or PCs. These PCs are new variables that are a linear combinations of our original SNPs:
+
+$$PC_1 = a_{11}x_1 + a_{12}x_2 + \cdots + a_{1p}x_p$$
+$$PC_2 = a_{21}x_1 + a_{22}x_2 + \cdots + a_{2p}x_p$$
+$$....$$
+$$PC_p = a_{p1}x_1 + a_{p2}x_2 + \cdots + a_{pp}x_p$$
+
+The number of the PC has some meaning to it - $PC_1$ is the component that explains the most variability in our data when all possible linear combinations are considered. In other words, it has the highest variance. $PC_2$ has the next highest variance, subject to the constraint of being orthogonal to, or uncorrelated with, $PC_1$. Next is $PC_3$, which is orthogonal to $PC_2$, and so forth. 
+
+Other important terminology related to PCs are scores and loadings. **Loadings** are the coefficients $a_{11}, a_{22}$, etc, which represent the contribution of each of the original variables to the new PC. **Scores** are the values that PCs take when you multiply the loading $a_{pp}$ by the value at that SNP, $x_p$.
+
+### Applying PCA to the data
+
+We can apply PCA to same data we have been working with. For computational time purposes, this example will use only the first 500 SNPs (off which 211 are polymorphic) on the first chromosome. 
+
+To recap, we have 3 populations - Malay, Indian, and Chinese - together which make 323 individuals. The following code preps the data for the analysis.
+
+```{r}
+# create population vector 
+malay <- c(rep("Malay", 108))
+indian <- c(rep("Indian", 105))
+chinese <- c(rep("Chinese", 110))
+population <- c(malay, indian, chinese)
+
+# create trait that varies slightly between populations
+malay_trait <- rnorm(n=108, 0, 1)
+indian_trait <- rnorm(n=105, -1, 1)
+chinese_trait <- rnorm(n=110, 1, 1)
+trait <- c(malay_trait, indian_trait, chinese_trait)
+
+# bind population, trait, and 211 polymorphic SNPs
+pca_data <- as.data.frame(cbind(population, trait, snp_500))
+
+# make trait and minor allele counts for SNPs be numeric
+pca_data[2:213] <- sapply(pca_data[2:213],as.numeric)
+```
+
+Looking at the 211 SNPs we can determine if there are any SNPs that seem to be more common in one population than the others. To do this, we can look at the major allele frequency of each SNP for each population and see how much they differ by. In order to summarize across all SNPs, I needed to drop `NA` values that were imputed when an number of major alleles was not recorded. As a result, a few more monomorphic SNPs became apparent - I will remove these later. 
+
+```{r}
+# function to get empirical major allele frequency: count up how many major alleles are observed and divide by two times the number of people
+get_major_allele_frequency <- function(snp){
+  sum(snp)/(2*length(snp))
+}
+
+# get observed allele frequency for each population
+snp_summaries <- pca_data %>%
+  drop_na() %>%
+  group_by(population) %>%
+  summarize_all(get_major_allele_frequency)
+
+#show first 8 snps
+snp_summaries %>%
+  select(1, 3:10)
+```
+
+To identify SNPs that have more variation between populations I took the standard deviation of the major allele frequencies for each population at each SNP. Below I identified the 6 SNPs that have the largest differences in allele frequency between the three populations.
+
+```{r}
+snp_summaries %>%
+  summarize_all(sd) %>%
+  select(-population, -trait) %>%
+  pivot_longer(cols = kgp7727307:kgp9781090, names_to = "snp", values_to = "sd") %>%
+  arrange(desc(sd)) %>%
+  head()
+
+snp_summaries %>%
+  select(population, kgp15585824, rs9442385, kgp2702438, rs9660710, kgp10549689, rs13302982)
+```
+
+#### Running PCA
+
+To further prepare the data for PCA I removed people with `NA` values at any SNP and then removed any resulting monomorphic SNPs that resulted from this process. To learn an easy way to remove zero variance columns I looked at [this website](https://rpubs.com/Mentors_Ubiqum/Zero_Variance).
+
+```{r}
+# drop people with missing entries at any SNP, remove population and trait columns
+geno <- pca_data %>%
+  drop_na() %>%
+  select(-population, -trait)
+
+# get rid of monomorphic SNPs
+geno <- geno[ - as.numeric(which(apply(geno, 2, var) == 0))]
+```
+
+This process leaves us with 264 people and 206 SNPs. We can run PCA on this data and extract the loadings and scores. 
+
+```{r}
+pca_out <- prcomp(geno, center = TRUE, scale = TRUE)
+
+pca_loadings <- pca_out$rotation
+pca_scores <- pca_out$x
+```
+
+#### Plot results
+
+Using the scores we extracted above, we can plot the PCs against each other and look for patterns. 
+```{r}
+# clean pca data 
+pca_data_clean <- pca_data %>% drop_na()
+
+pca_scores %>%
+  as.data.frame() %>% # convert pca_scores into a data frame for plotting
+  mutate(population = as.factor(pca_data_clean$population)) %>%  # add the population labels
+  ggplot(aes(x = PC1, y = PC2, color = population)) + # then plot
+  geom_point() + 
+  scale_color_brewer(palette = 'Dark2')+
+  theme_classic()+
+  labs(title = "PC1 vs PC2", color = "Population")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size = 12), 
+        axis.title = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono"))
+
+pca_scores %>%
+  as.data.frame() %>% # convert pca_scores into a data frame for plotting
+  mutate(population = as.factor(pca_data_clean$population)) %>%  # add the population labels
+  ggplot(aes(x = PC3, y = PC4, color = population)) + 
+  geom_point() + 
+  scale_color_brewer(palette = 'Dark2')+
+  theme_classic()+
+  labs(title = "PC3 vs PC4", color = "Population")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size = 12), 
+        axis.title = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono"))
+```
+
+It doesn't appear that any of these top PCs are especially great at separating individuals into our populations. This could be for a few reasons. First, we did not run PCA on the entire dataset - it could just be that these particular SNPs do not have many differences between the three populations, and that if we were to use more SNPs we would see more places along the genome that these populations differ. Second, we removed some people from this dataset because they had a missing value at at least one of the 211 SNPs we looked at. This makes our sample size smaller - next time, I might use imputation or remove specific SNPs if they have an especially high number of missing values. Finally, I'd try some more advanced data cleaning techniques. It's possible some people in this study are related (perhaps the two purple dots in the bottom right hand corner of the PC1 vs PC2 plot). I am interested in learning more about another R package that might help identify relationships.
+
+We can also make a parallel coordinates plot to visualize the PC scores, which allows us to see more than two PCs at once. The following plot looks at the first 20 PCs. Each line on this plot is one person and we can trace their path to tell us their scores for each PC. Coloring the plot by the population highlights patterns in terms of which PCs seem to be capturing population membership. In this plot, it looks like PC2 and PC4 have a decent amount of separation compared to the other PCs, which would indicate that these two principal component may be especially helpful at separating the populations. However, as we saw in the plots above this doesn't really appear to be the case. 
+
+```{r}
+pca_scores %>%
+  as.data.frame() %>% # convert pca_scores into a data frame for plotting
+  mutate(population = as.factor(pca_data_clean$population)) %>% # add the population labels
+  ggparcoord(columns = 1:20, groupColumn = 'population', alpha = 0.2) + # plot the first 15 columns
+  theme_minimal() + 
+  scale_color_brewer(palette = 'Dark2')+
+  theme_classic()+
+  labs(title = "Parallel coordinates plot for first 20 PCs", color = "Population", x = "Principal Component")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size = 12), 
+        axis.title = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono"), 
+        axis.text.x = element_text(size = 7))
+```
+
+In addition to the parallel coordinates plot, to decide how many principal components to use we can also use a scree plot. This calculates the proportion of variance each PC explains. For the plot below, we see that PC1 and PC2 explain the most variance compared to PC3, 4, and so forth, so we might decide to use these two PCs in our GWAS model.
+```{r}
+# extract variance of each PC
+pca_var <- (pca_out$sdev)^2
+
+# calculate proportion of variance explained
+total_var <- sum(pca_var)
+pve <- pca_var/total_var
+
+# scree plot
+pve %>%
+  as.data.frame() %>%
+  mutate(index = seq_len(length(pca_var))) %>%
+  ggplot(aes(x = index, y = pve)) + 
+  geom_point() + 
+  geom_line() + 
+  labs(x = 'SNP Number', y = 'Percent of Variance Explained') + 
+  theme_minimal()
+```
+
+#### Discuss the impacts on GWAS 
+
+Having completed PC, we could now incorporate PC1 and PC2 into our GWAS (in this case it would be just for the small number of SNPs in this analysis). As a reminder, this allows us to adjust for the confounding role that ancestry plays in identifying relationships between SNPs and the trait of interest.
+
+What would PCA do here? If I had created the trait to be correlated with both population *and* a particular SNP (the second of which I did not do), we would expect the p-value for that particular SNP to be significant and easily identifiable. However, when we don't include the top PCs in our marginal regression models we may get additional SNPs that have significant p-values - for example, this could be SNP kgp15585824 or rs9442385 which were the SNPs that differed the most in major allele frequency between the three groups. Including PC1 and PC2 will better account for these ancestral differences and make our causal SNP more clear.
+
+Looking forward, it is my goal to learn more about computational solutions and maybe imputation. Then I am planning to run PCA on this entire dataset and see what happens as far as some of the plots above go and also a GWAS.
+
 ## Acknowledgements 
 
-Thank you to [R-bloggers](https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/) for providing the data for this analysis. Also thank you to my professor Kelsey Grinde for putting together a lot of code used in the GWAS above, helping solve several (some careless) problems I ran into when doing this analysis, and for mentioning `cache=TRUE` in class which will save me lots of time in my career as a data scientist :)
+Thank you to [R-bloggers](https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/) for providing the data for this analysis. Also thank you to my professor Kelsey Grinde for putting together a lot of code used in the analysis above and helping me troubleshoot a lot of the issues and things I had to think more deeply about that I encountered trying to apply my knowledge to a new dataset!
