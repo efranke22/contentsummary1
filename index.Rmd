@@ -699,4 +699,4 @@ Looking forward, it is my goal to learn more about computational solutions and m
 
 ## Acknowledgements 
 
-Thank you to [R-bloggers](https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/) for providing the data for this analysis. Also thank you to my professor Kelsey Grinde for putting together a lot of code used in the analysis above and helping me troubleshoot a lot of the issues and things I had to think more deeply about that I encountered trying to apply my knowledge to a new dataset!
+Thank you to [R-bloggers](https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/) for providing the data for this analysis. Also thank you to my professor Kelsey Grinde for teaching me several of the concepts above and helping me troubleshoot many of the issues I encountered trying to apply my knowledge to a new dataset!

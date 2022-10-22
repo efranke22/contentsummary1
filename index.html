@@ -760,7 +760,7 @@ final results.</p>
 y &lt;- X[,&#39;rs3131972&#39;] + rnorm(n, 0, 1.5)
 head(y)</code></pre>
 <pre><code>## M11062205 M11050406 M11050407 M11070602 M11060912 M11060920 
-## 3.5588547 1.0340733 2.7749511 0.9898168 3.5823683 2.7955485</code></pre>
+##  2.959386  2.483131  3.863294 -1.062729 -1.542863  1.616320</code></pre>
 </div>
 <div id="run-gwas" class="section level2">
 <h2>Run GWAS</h2>
@@ -781,22 +781,22 @@ snp3mod &lt;- lm(y ~ X.clean[,3])
 
 tidy(snp1mod)</code></pre>
 <pre><code>## # A tibble: 2 × 5
-##   term         estimate std.error statistic    p.value
-##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;      &lt;dbl&gt;
-## 1 (Intercept)     0.116     0.305     0.382 0.703     
-## 2 X.clean[, 1]    0.780     0.171     4.57  0.00000685</code></pre>
+##   term         estimate std.error statistic  p.value
+##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+## 1 (Intercept)     0.495     0.317      1.56 0.119   
+## 2 X.clean[, 1]    0.620     0.177      3.50 0.000535</code></pre>
 <pre class="r"><code>tidy(snp2mod)</code></pre>
 <pre><code>## # A tibble: 2 × 5
-##   term         estimate std.error statistic     p.value
-##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;       &lt;dbl&gt;
-## 1 (Intercept)     0.307     0.242      1.27 0.205      
-## 2 X.clean[, 2]    0.752     0.148      5.07 0.000000666</code></pre>
+##   term         estimate std.error statistic  p.value
+##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+## 1 (Intercept)    0.0333     0.241     0.138 8.90e- 1
+## 2 X.clean[, 2]   0.998      0.148     6.75  7.14e-11</code></pre>
 <pre class="r"><code>tidy(snp3mod)</code></pre>
 <pre><code>## # A tibble: 2 × 5
-##   term         estimate std.error statistic p.value
-##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt;
-## 1 (Intercept)     1.04      0.403      2.59 0.00994
-## 2 X.clean[, 3]    0.232     0.218      1.07 0.287</code></pre>
+##   term         estimate std.error statistic    p.value
+##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;      &lt;dbl&gt;
+## 1 (Intercept)    -0.196     0.402    -0.489 0.625     
+## 2 X.clean[, 3]    0.977     0.217     4.50  0.00000958</code></pre>
 <p>The way we might interpret one of these coefficients, say for example
 the estimate for SNP 1, is that for every additional minor allele (G for
 example) that you carry at that position, the trait of interest changes
@@ -988,8 +988,8 @@ tidy(snp1mod)</code></pre>
 <pre><code>## # A tibble: 2 × 5
 ##   term              estimate std.error statistic  p.value
 ##   &lt;chr&gt;                &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
-## 1 (Intercept)         1.54       0.209     7.40  1.23e-12
-## 2 X.clean[, 830000]  -0.0610     0.137    -0.444 6.57e- 1</code></pre>
+## 1 (Intercept)         1.66       0.214     7.75  1.21e-13
+## 2 X.clean[, 830000]  -0.0701     0.141    -0.498 6.19e- 1</code></pre>
 <p>Another key piece of information related to hypothesis testing is
 errors. Ideally, we want to reject <span class="math inline">\(H_0\)</span> when it is wrong and accept <span class="math inline">\(H_0\)</span> when it is right, but unfortunately
 this does not always happen. We call rejecting the null hypothesis <span class="math inline">\(H_0\)</span> when it is true a <strong>type I
@@ -1566,9 +1566,8 @@ and also a GWAS.</p>
 <h2>Acknowledgements</h2>
 <p>Thank you to <a href="https://www.r-bloggers.com/2017/10/genome-wide-association-studies-in-r/">R-bloggers</a>
 for providing the data for this analysis. Also thank you to my professor
-Kelsey Grinde for putting together a lot of code used in the analysis
-above and helping me troubleshoot a lot of the issues and things I had
-to think more deeply about that I encountered trying to apply my
+Kelsey Grinde for teaching me several of the concepts above and helping
+me troubleshoot many of the issues I encountered trying to apply my
 knowledge to a new dataset!</p>
 </div>
 
