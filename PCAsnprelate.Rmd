@@ -21,22 +21,26 @@ library(SNPRelate)
 
 Load the data and convert to gds format. 
 
-```{r}
-bed.fn.m <- "../../Desktop/GWAStutorial/public/Genomics/108Malay_2527458snps.bed"
-fam.fn.m <- "../../Desktop/GWAStutorial/public/Genomics/108Malay_2527458snps.fam"
-bim.fn.m <- "../../Desktop/GWAStutorial/public/Genomics/108Malay_2527458snps.bim"
+```{r, eval=FALSE}
+#bed.fn.m <- "../../Desktop/GWAStutorial/public/Genomics/108Malay_2527458snps.bed"
+#fam.fn.m <- "../../Desktop/GWAStutorial/public/Genomics/108Malay_2527458snps.fam"
+#bim.fn.m <- "../../Desktop/GWAStutorial/public/Genomics/108Malay_2527458snps.bim"
+
+bed.fn.m <- "/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/108Malay_2527458snps.bed"
+fam.fn.m <- "/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/108Malay_2527458snps.fam"
+bim.fn.m <- "/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/108Malay_2527458snps.bim"
 
 snpgdsBED2GDS(bed.fn.m, fam.fn.m, bim.fn.m, "test.gds")
 
-bed.fn.i <- "../../Desktop/GWAStutorial/public/Genomics/105Indian_2527458snps.bed"
-fam.fn.i <- "../../Desktop/GWAStutorial/public/Genomics/105Indian_2527458snps.fam"
-bim.fn.i <- "../../Desktop/GWAStutorial/public/Genomics/105Indian_2527458snps.bim"
+bed.fn.i <- "/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/105Indian_2527458snps.bed"
+fam.fn.i <- "/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/105Indian_2527458snps.fam"
+bim.fn.i <- "/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/105Indian_2527458snps.bim"
 
 snpgdsBED2GDS(bed.fn.i, fam.fn.i, bim.fn.i, "test2.gds")
 
-bed.fn.c <- "../../Desktop/GWAStutorial/public/Genomics/110Chinese_2527458snps.bed"
-fam.fn.c <- "../../Desktop/GWAStutorial/public/Genomics/110Chinese_2527458snps.fam"
-bim.fn.c <- "../../Desktop/GWAStutorial/public/Genomics/110Chinese_2527458snps.bim"
+bed.fn.c <- "/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/110Chinese_2527458snps.bed"
+fam.fn.c <- "/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/110Chinese_2527458snps.fam"
+bim.fn.c <- "/Users/erinfranke/Desktop/GWAStutorial-master/public/Genomics/110Chinese_2527458snps.bim"
 
 snpgdsBED2GDS(bed.fn.c, fam.fn.c, bim.fn.c, "test3.gds")
 
@@ -44,7 +48,7 @@ snpgdsSummary("test.gds")
 ```
 
 Combine three population files into one. 
-```{r}
+```{r, eval=FALSE}
 fn1 <- "test.gds"
 fn2 <- "test2.gds"
 fn3 <- "test3.gds"
